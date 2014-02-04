@@ -62,9 +62,9 @@
 
  * `display_pages_shortcode_output`
 
- * For customizing the output of individual posts.
+ * For customizing the output of individual pages.
 
- * Example: https://gist.github.com/1175575#file_display_pages_shortcode_output.php
+ * Example: https://github.com/RustyBadRobot/display-pages-shortcode.git
 
  *
 
@@ -76,15 +76,31 @@
 
  * can be changed to <ol> or <div> using the 'wrapper' attribute, or by using this filter.
 
- * Example: https://gist.github.com/1270278
+ * Example:https://github.com/RustyBadRobot/display-pages-shortcode.git
 
  */ 
 
  
+// Add stylesheet
+
+function display_page_scripts() {
+	wp_enqueue_style( 'grid-load', plugins_url(). '/display-pages-shortcode/assets/style.css' );
+}
+
+add_action( 'wp_enqueue_scripts', 'display_page_scripts' );
+
 
 // Create the shortcode
 
 add_shortcode( 'display-pages', 'be_display_pages_shortcode' );
+
+function string_limit_words($string, $word_limit)
+{
+  $words = explode(' ', $string, ($word_limit + 1));
+  if(count($words) > $word_limit)
+  array_pop($words);
+  return implode(' ', $words);
+}
 
 function be_display_pages_shortcode( $atts ) {
 
@@ -141,6 +157,8 @@ function be_display_pages_shortcode( $atts ) {
 		'taxonomy'            => false,
 
 		'wrapper'             => 'ul',
+		
+		'column_count'		  => '',
 
 	), $atts );
 
@@ -188,7 +206,7 @@ function be_display_pages_shortcode( $atts ) {
 
 	$wrapper = sanitize_text_field( $atts['wrapper'] );
 
-
+	$column_count = sanitize_text_field( $atts['column_count'] );
 
 	
 
@@ -426,49 +444,66 @@ function be_display_pages_shortcode( $atts ) {
 
 	$inner = '';
 
-	while ( $listing->have_posts() ): $listing->the_post(); global $post;
+	$i = 0;
 
+	while ( $listing->have_posts() ): $listing->the_post(); global $post;
+	
+	$i++;
 		
 
 		$image = $date = $excerpt = $content = '';
 		
-		$toptitle = '<h2 class="widget_spec"><a href="' . get_category_link($categories) . apply_filters( 'the_title', get_the_title() ) . '</a></h2>';
-
-		
-
 		$title = '<h2><a href="' . apply_filters( 'the_permalink', get_permalink() ) . '">' . apply_filters( 'the_title', get_the_title() ) . '</a></h2>';
 
 		
 
 		if ( $image_size && has_post_thumbnail() )  
 
-			$image = '<div class="imgwrap"><a href="' . get_permalink() . '">' . get_the_post_thumbnail( $post->ID, $image_size ) . '</a></div>';
+			$image = '<a class="image" href="' . get_permalink() . '">' . get_the_post_thumbnail( $post->ID, $image_size ) . '</a> ';
 
 			
 
 		if ( $include_date ) 
 
-			$date = ' <p class="meta">' . get_the_date( $date_format ) . '</p>';
+			$date = ' <span class="date">' . get_the_date( $date_format ) . '</span>';
 
 		
 
-		if ( $include_excerpt ) 
+		if ( $include_excerpt )
 
-			$excerpt = '<p class="excerpt">' . vergo_excerpt( get_the_excerpt(), '150') . '</p><p class="meta more"><a href="' . get_permalink() . '" class="fr">Read More <i class="icon-circle-arrow-right"></i></a></p>';
+			$snippet = get_the_excerpt();	
+
+			$excerpt = ' <span class="excerpt">' . string_limit_words($snippet,25) . '</span>';
 
 			
 
 		if( $include_content )
 
-			$content = '<p class="teaser">' . apply_filters( 'the_content', get_the_content() ) . '</p>'; 
+			$content = '<div class="content">' . apply_filters( 'the_content', get_the_content() ) . '</div>'; 
 
-		
-
-		$class = array( 'widgetcol_three' );
+			
+	
+		$class = array();	
 
 		$class = apply_filters( 'display_pages_shortcode_post_class', $class, $post, $listing );
+		
+		// Column Count
 
-		$output = '<' . $inner_wrapper . ' class="' . implode( ' ', $class ) . '"><div class="widgetcol_big">' . $image . $title . $date . $excerpt . $content . '</div></' . $inner_wrapper . '>';
+		if( empty( $column_count ) ) {
+		
+			$output = '<' . $inner_wrapper . ' class="' . implode( '', $class ) . '">' . $image . $title . $date . $excerpt . $content . '</' . $inner_wrapper . '>';
+
+		} elseif ( $i == $column_count ) {
+
+			$output = '<' . $inner_wrapper . ' class="column column-1-' . $column_count . ' column-last">' . $image . $title . $date . $excerpt . $content . '</' . $inner_wrapper . '><br class="column-clear" />';
+
+		} else {
+
+			$output = '<' . $inner_wrapper . ' class="column column-1-' . $column_count . '">' . $image . $title . $date . $excerpt . $content . '</' . $inner_wrapper . '>';
+
+		}		
+
+		
 
 		
 
@@ -488,7 +523,7 @@ function be_display_pages_shortcode( $atts ) {
 
 	
 
-	$open = apply_filters( 'display_pages_shortcode_wrapper_open', '<' . $wrapper . '>', $original_atts );
+	$open = apply_filters( 'display_posts_shortcode_wrapper_open', '<' . $wrapper . ' class="display-pages-listing">', $original_atts );
 
 	$close = apply_filters( 'display_pages_shortcode_wrapper_close', '</' . $wrapper . '>', $original_atts );
 
